@@ -1,0 +1,6 @@
+projectKey=Schema2Script801G1
+serverUrl=http://localhost:9000
+serverVersion=10.7.0.96327
+dashboardUrl=http://localhost:9000/dashboard?id=Schema2Script801G1
+ceTaskId=bf5fdf8d-2f6f-4f8f-8862-690bd5859fbe
+ceTaskUrl=http://localhost:9000/api/ce/task?id=bf5fdf8d-2f6f-4f8f-8862-690bd5859fbe

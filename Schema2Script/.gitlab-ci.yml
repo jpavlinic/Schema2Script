@@ -1,0 +1,77 @@
+image: kmarasovic/alpine-jdk17-ant-mvn  # Uses an image with Java tools installed
+
+stages:
+  - build
+  - test
+  - package
+  
+# Build job: Compiles Java source files and stores the bytecode in a classes folder
+build-job:
+  stage: build
+  script:
+    - echo "Building the edge converter..."
+    - which java
+    - mvn clean compile
+  artifacts:
+    paths:
+      - ./target/classes
+
+# SonarQube check job: Runs static code analysis with SonarQube
+test-sonar:
+  stage: test
+  image: maven:3-eclipse-temurin-17
+  script: 
+    - mvn verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
+  allow_failure: true  # Allow the pipeline to continue even if SonarQube fails
+  variables:
+    SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"  # Defines the location of the analysis task cache
+    GIT_DEPTH: "0"  # Ensures that git fetches the entire project history for accurate analysis
+  dependencies:
+    - build-job  # Make sure SonarQube runs after the build-job
+
+# JUnit testing job: Executes JUnit tests
+test-junit:
+  stage: test
+  image: maven:3-eclipse-temurin-17
+  script:
+    - echo "Running JUnit tests..."
+    - mvn test  # Runs JUnit tests
+  allow_failure: false  # Make sure the pipeline fails if JUnit tests fail
+  dependencies:
+    - build-job  # JUnit tests depend on the build step
+  artifacts:
+    when: always
+    paths:
+      - target/surefire-reports/  # Save JUnit test reports
+    reports:
+      junit: target/surefire-reports/*.xml  # Collect test reports in JUnit XML format
+
+# SonarQube vulnerability report job: Generates a vulnerability report from SonarQube
+test-sonar-report:
+  stage: test
+  image: maven:3-eclipse-temurin-17
+  script:
+    - echo "${SONAR_HOST_URL}"
+    - echo "rit-croatia_iste-422_schema2script801g1"
+    - curl --fail -u "${SONAR_TOKEN}:" "${SONAR_HOST_URL}api/issues/search?componentKeys=rit-croatia_iste-422_schema2script801g1_8365cdf5-3f53-4383-b25e-839b574804af" -o gl-sast-sonar-report.json
+    - ls -l  # Verify that the report was created
+  allow_failure: true
+  dependencies:
+   - build-job  # Make sure SonarQube runs after the build-job
+  artifacts:
+    paths:
+      - gl-sast-sonar-report.json
+    reports:
+      sast: gl-sast-sonar-report.json
+
+
+# Package job: Packages the compiled classes into a JAR file
+package-job:
+  stage: package
+  script:
+    - echo "Packaging Schema2Script with Maven..."
+    - mvn clean package  # Package the pre-compiled classes into a JAR
+  artifacts:
+    when: on_success
+    paths:
+      - target/*.jar  # Save the JAR file as an artifact
